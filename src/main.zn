@@ -61,6 +61,20 @@ contract zkERC20ish {
         true
     }
 
+    pub fn transferTo(mut self, to: Address, amount: Balance) -> bool {
+        require(zksync::msg.amount == 0, "Failed::transferFrom: nonpayable");
+
+        let sender = zksync::msg.sender as Address;
+        let (senderBalance, senderBalanceExists) = self._balances.get(sender);
+        require(senderBalance >= amount, "Failed::transferTo: low senderBalance");
+
+        let (oldToBalance, oldToBalanceExists) = self._balances.get(to);
+        
+        self._balances.insert(sender, senderBalance - amount);
+        self._balances.insert(to, oldToBalance + amount);
+        true
+    }
+
     pub fn transferFrom(mut self, from: Address, to: Address, amount: Balance) -> bool {
         require(zksync::msg.amount == 0, "Failed::transferFrom: nonpayable");
 
@@ -76,10 +90,9 @@ contract zkERC20ish {
         let (fromBalance, fromBalanceExists) = self._balances.get(from);
         require(fromBalance >= amount, "Failed::transferFrom: low fromBalance");
 
-        let newFromBalance = amount - fromBalance;
-        self._balances.insert(from, newFromBalance);
-
         let (oldToBalance, oldToBalanceExists) = self._balances.get(to);
+
+        self._balances.insert(from, fromBalance - amount);
         self._balances.insert(to, oldToBalance + amount);
         true
     }
