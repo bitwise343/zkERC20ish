@@ -1,0 +1,2 @@
+# zkERC20ish
+This is an initial zinc implementation of the ERC20 token standard. Because zinc auto-injects the `balances` state variable and the `transfer` method in every contract, we cannot adhere exactly to the ERC20 interface. Alternatively, we use `transferTo`.
