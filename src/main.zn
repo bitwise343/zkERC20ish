@@ -1,0 +1,86 @@
+//!
+//! The 'zkERC20ish' contract entry.
+//!
+
+/*
+  zkERC20ish because <Contract>::transfer method autogenerates and blocks the 
+  full interface.
+  although, i'm not entirely sure if it's even possible, given that function 
+  selectors may be different? erc20 doesn't specify that selectors should
+  match, but it might be an underlying assumption given that ERC165 is an
+  adopted standard for checking if a contract implements a certain interface,
+  and it depends on specific selectors according to the way Solidity expects
+  function signature hashes.
+*/
+use std::collections::MTreeMap;
+
+mod types;
+use self::types::Balance;
+use self::types::Address;
+use self::types::Name;
+use self::types::Symbol;
+
+
+contract zkERC20ish {
+    pub name: Name; // 32 bytes array
+    pub symbol: Symbol; // 4 bytes array
+    pub decimals: u8;
+    pub totalSupply: Balance; // u248
+
+    _allowances: MTreeMap<(Address, Address), Balance>;
+    _balances: MTreeMap<Address, Balance>;
+
+    pub fn new(
+        name: Name, symbol: Symbol, decimals: u8, totalSupply: Balance
+    ) -> Self {
+        let mut _self = Self {
+            name: name,
+            symbol: symbol,
+            decimals: decimals,
+            totalSupply: totalSupply,
+            _allowances: MTreeMap,
+            _balances: MTreeMap,
+        };
+        _self._balances.insert(zksync::msg.sender as Address, totalSupply);
+        _self
+    }
+
+    pub fn allowance(self, account: Address, spender: Address) -> Balance {
+        let (allowance, exists) = self._allowances.get((account, spender));
+        allowance
+    }
+
+    pub fn balanceOf(self, account: Address) -> Balance {
+        let (balance, exists) = self._balances.get(account);
+        balance
+    }
+
+    pub fn approve(mut self, spender: Address, amount: Balance) -> bool {
+        require(zksync::msg.amount == 0, "Failed::approve: nonpayable");
+        self._allowances.insert((zksync::msg.sender as Address, spender), amount);
+        true
+    }
+
+    pub fn transferFrom(mut self, from: Address, to: Address, amount: Balance) -> bool {
+        require(zksync::msg.amount == 0, "Failed::transferFrom: nonpayable");
+
+        let sender = zksync::msg.sender as Address;
+        if sender != from {
+            let (approvedAmount, exists) = self._allowances.get((from, sender));
+            require(
+                approvedAmount >= amount, 
+                "Failed::transferFrom: not approved for amount"
+            );
+        }
+
+        let (fromBalance, fromBalanceExists) = self._balances.get(from);
+        require(fromBalance >= amount, "Failed::transferFrom: low fromBalance");
+
+        let newFromBalance = amount - fromBalance;
+        self._balances.insert(from, newFromBalance);
+
+        let (oldToBalance, oldToBalanceExists) = self._balances.get(to);
+        self._balances.insert(to, oldToBalance + amount);
+        true
+    }
+}

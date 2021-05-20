@@ -1,0 +1,8 @@
+//!
+//! Types 
+//!
+
+pub type Address = u160;
+pub type Balance = u248;
+pub type Name = [bool; 32];
+pub type Symbol = [bool; 4];
